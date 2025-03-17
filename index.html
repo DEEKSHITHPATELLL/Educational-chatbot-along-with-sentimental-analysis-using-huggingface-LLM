@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Educational Chatbot with Sentiment Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #f5f7ff 0%, #e9ecff 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .chat-container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #4F46E5;
+            color: white;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .bot-icon {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .chat-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .chat-header p {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .chat-messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .message.bot .message-avatar {
+            background: #F3F4F6;
+            color: #4F46E5;
+        }
+
+        .message.user .message-avatar {
+            background: #4F46E5;
+            color: white;
+        }
+
+        .message-content {
+            background: #F3F4F6;
+            padding: 1rem;
+            border-radius: 1rem;
+            max-width: 70%;
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: #4F46E5;
+            color: white;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #6B7280;
+            margin-top: 0.25rem;
+        }
+
+        .message.user .message-time {
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .chat-input {
+            padding: 1.5rem;
+            border-top: 1px solid #E5E7EB;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid #E5E7EB;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .chat-input input:focus {
+            outline: none;
+            border-color: #4F46E5;
+        }
+
+        .chat-input button {
+            background: #4F46E5;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .chat-input button:hover {
+            background: #4338CA;
+        }
+
+        .chat-input button:disabled {
+            background: #9CA3AF;
+            cursor: not-allowed;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background: #9CA3AF;
+            border-radius: 50%;
+            animation: bounce 1s infinite;
+        }
+
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .welcome-message {
+            text-align: center;
+            color: #6B7280;
+            padding: 2rem;
+        }
+
+        .welcome-message svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            color: #4F46E5;
+        }
+
+        .sentiment-graph-container {
+            padding: 1.5rem;
+            border-top: 1px solid #E5E7EB;
+            text-align: center;
+        }
+
+        .sentiment-graph-container canvas {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="bot-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+                    <path d="M12 8v8"/>
+                    <path d="M8.5 9.5a3.5 3.5 0 0 0 7 0"/>
+                    <path d="M20 12v3a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7v-3"/>
+                </svg>
+            </div>
+            <div>
+                <h1>Educational Chatbot</h1>
+                <p>Your AI Learning Assistant</p>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chatMessages">
+            <div class="welcome-message">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 3v3m0 12v3M3 12h3m12 0h3m-2.5-8.5 2.5 2.5m-15 15 2.5-2.5m0-15L3 6m15 15-2.5-2.5"/>
+                </svg>
+                <p>Ask me anything educational!</p>
+                <p style="font-size: 0.875rem; margin-top: 0.5rem;">I'm here to help you learn and understand better.</p>
+            </div>
+        </div>
+
+        <form class="chat-input" id="chatForm">
+            <input 
+                type="text" 
+                id="userInput" 
+                placeholder="Ask me something educational..." 
+                autocomplete="off"
+            >
+            <button type="submit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="m22 2-7 20-4-9-9-4Z"/>
+                    <path d="m22 2-3 3-7 7"/>
+                </svg>
+                Send
+            </button>
+        </form>
+
+        <div class="sentiment-graph-container">
+            <h2>Sentiment Analysis Graph</h2>
+            <canvas id="sentimentGraph"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatForm = document.getElementById('chatForm');
+        const userInput = document.getElementById('userInput');
+        const sendButton = chatForm.querySelector('button');
+        const sentimentGraph = document.getElementById('sentimentGraph').getContext('2d');
+
+        let sentimentData = {
+            labels: [],
+            datasets: [{
+                label: 'Sentiment Polarity',
+                data: [],
+                borderColor: function(context) {
+                    const value = context.dataset.data[context.dataIndex];
+                    return value > 0 ? 'green' : value < 0 ? 'red' : 'gray';
+                },
+                backgroundColor: function(context) {
+                    const value = context.dataset.data[context.dataIndex];
+                    return value > 0 ? 'rgba(0, 255, 0, 0.2)' : value < 0 ? 'rgba(255, 0, 0, 0.2)' : 'rgba(128, 128, 128, 0.2)';
+                },
+                fill: true,
+                tension: 0.4
+            }]
+        };
+
+        const sentimentChart = new Chart(sentimentGraph, {
+            type: 'line',
+            data: sentimentData,
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Conversation Number'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Sentiment Polarity'
+                        },
+                        min: -1,
+                        max: 1
+                    }
+                }
+            }
+        });
+
+        function createMessageElement(message, sender, timestamp) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = sender === 'bot' 
+                ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M12 8v8"/><path d="M8.5 9.5a3.5 3.5 0 0 0 7 0"/><path d="M20 12v3a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7v-3"/></svg>'
+                : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+            const content = document.createElement('div');
+            content.className = 'message-content';
+            content.textContent = message;
+
+            const time = document.createElement('div');
+            time.className = 'message-time';
+            time.textContent = new Date(timestamp).toLocaleTimeString();
+            content.appendChild(time);
+
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(content);
+
+            return messageDiv;
+        }
+
+        function addTypingIndicator() {
+            const indicator = document.createElement('div');
+            indicator.className = 'typing-indicator';
+            indicator.innerHTML = `
+                <div class="message-avatar">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2 2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/>
+                        <path d="M12 8v8"/>
+                        <path d="M8.5 9.5a3.5 3.5 0 0 0 7 0"/>
+                        <path d="M20 12v3a7 7 0 0 1-7 7h-2a7 7 0 0 1-7-7v-3"/>
+                    </svg>
+                </div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            return indicator;
+        }
+
+        function removeWelcomeMessage() {
+            const welcomeMessage = chatMessages.querySelector('.welcome-message');
+            if (welcomeMessage) {
+                welcomeMessage.remove();
+            }
+        }
+
+        function updateSentimentGraph() {
+            fetch('/sentiment-graph')
+                .then(response => response.json())
+                .then(data => {
+                    sentimentData.labels = data.labels;
+                    sentimentData.datasets[0].data = data.sentiments;
+                    sentimentChart.update();
+                });
+        }
+
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            removeWelcomeMessage();
+            
+            // Disable input and button while processing
+            userInput.disabled = true;
+            sendButton.disabled = true;
+
+            // Add user message
+            chatMessages.appendChild(createMessageElement(message, 'user', new Date()));
+            userInput.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // Add typing indicator
+            const typingIndicator = addTypingIndicator();
+            chatMessages.appendChild(typingIndicator);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const response = await fetch('/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message })
+                });
+
+                const data = await response.json();
+                
+                // Remove typing indicator
+                typingIndicator.remove();
+
+                // Add bot response
+                chatMessages.appendChild(createMessageElement(data.response, 'bot', new Date()));
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // Update sentiment graph
+                updateSentimentGraph();
+            } catch (error) {
+                console.error('Failed to get response:', error);
+                typingIndicator.remove();
+                chatMessages.appendChild(createMessageElement('Sorry, I encountered an error. Please try again.', 'bot', new Date()));
+            } finally {
+                // Re-enable input and button
+                userInput.disabled = false;
+                sendButton.disabled = false;
+                userInput.focus();
+            }
+        });
+
+        // Focus input on load
+        userInput.focus();
+    </script>
+</body>
+</html>
